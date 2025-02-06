@@ -1,20 +1,24 @@
-# Use the official Node.js image as the base image
+# Use an official Python + Node.js image
 FROM node:18
+
+# Install Python
+RUN apt-get update && apt-get install -y python3 python3-pip
 
 # Set the working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json first (for better caching)
+# Copy package files first (for caching layers)
 COPY package.json package-lock.json ./
+RUN npm install
 
-# Install dependencies
-RUN apt-get update && apt-get install -y python3 build-essential && npm install
-
-# Copy the rest of your application code
+# Copy the rest of the app
 COPY . .
 
-# Expose the port your app runs on
-EXPOSE 3000
+# Install Python dependencies
+RUN pip3 install -r requirements.txt
 
-# Start the application
-CMD ["npm", "start"]
+# Expose backend port
+EXPOSE 8000
+
+# Start the backend
+CMD ["python3", "main.py"]
