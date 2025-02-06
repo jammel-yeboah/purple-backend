@@ -1,4 +1,10 @@
 {
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "main.py",
+  "scripts": {
+    "start": "python main.py"
+  },
   "dependencies": {
     "@solana/wallet-adapter-wallets": "^0.19.32",
     "chart.js": "^4.4.7",
