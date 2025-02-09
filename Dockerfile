@@ -22,5 +22,8 @@ EXPOSE 80
 # Define environment variable
 ENV NAME World
 
-# Run app.py when the container launches
+# Set the PYTHONPATH environment variable
+ENV PYTHONPATH=/app
+
+# Run the correct main.py when the container launches
 CMD ["python", "api/main.py"]
