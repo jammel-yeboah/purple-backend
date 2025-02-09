@@ -1,15 +1,26 @@
-# Use the Python 3 alpine official image
-# https://hub.docker.com/_/python
-FROM python:3-alpine
+# Use an official Python runtime as a parent image
+FROM python:3.13
 
-# Create and change to the app directory.
+# Set the working directory in the container
 WORKDIR /app
 
-# Copy local code to the container image.
-COPY . .
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install project dependencies
+# Copy the current directory contents into the container at /app
+COPY . /app
+
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Run the web service on container startup.
-CMD ["hypercorn", "main:app", "--bind", "::"]
+# Make port 80 available to the world outside this container
+EXPOSE 80
+
+# Define environment variable
+ENV NAME World
+
+# Run app.py when the container launches
+CMD ["python", "main.py"]
