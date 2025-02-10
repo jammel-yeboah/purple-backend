@@ -1,10 +1,42 @@
-from fastapi import APIRouter
-from api.lunarcrush_client import LunarCrushClient
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+import os
+import psycopg2
 import time
+
+from api.lunarcrush_client import LunarCrushClient
 
 router = APIRouter()
 client = LunarCrushClient()
 
+# ---------------------
+# CONNECT TO POSTGRES
+# ---------------------
+# DATABASE_URL = os.getenv("DATABASE_URL")  # Railway sets this automatically
+DATABASE_URL = "postgresql://postgres:kMHdLTGqRYLyvaXurBlXMnRlEpMLKJBB@roundhouse.proxy.rlwy.net:51104/railway"
+
+conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+conn.autocommit = True  # Ensures each statement executes immediately
+
+# Create the table if it doesn't exist
+with conn.cursor() as cur:
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS waitlist (
+        id SERIAL PRIMARY KEY,
+        email TEXT NOT NULL,
+        reason TEXT,
+        wallet_address TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+    );
+    """)
+
+# Pydantic model for request body
+class WaitlistEntry(BaseModel):
+    email: str
+    reason: str
+    wallet_address: str = None
+
+# ------------- Data needed for search, coins, topics etc -------------
 COIN_SET = set()  # coin symbols + names, both lowercased
 COIN_CACHE_TTL = 3600
 _last_coin_cache_update = 0
@@ -35,13 +67,38 @@ def search(query: str):
     query_lower = query.lower()
 
     if query_lower in COIN_SET:
-        # It's a recognized coin
-        # We'll also return the 'symbol' to be used on the frontend for /coins/[symbol]
-        # If you'd like to map 'bitcoin' -> 'btc', store that mapping, but here's a simple case:
         return {"type": "coin", "value": query_lower}
     else:
-        # It's a topic
         return {"type": "topic", "value": query_lower}
+
+
+# ------------------- Waitlist Route --------------------
+@router.post("/api/waitlist")
+def add_to_waitlist(entry: WaitlistEntry):
+    """
+    Inserts user data into the 'waitlist' table.
+    Example JSON:
+      { "email": "joe@xyz.com", "reason": "I love AI!", "wallet_address": "someSolanaAddress" }
+    """
+    if not entry.email:
+        raise HTTPException(status_code=400, detail="Email is required")
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO waitlist (email, reason, wallet_address)
+                VALUES (%s, %s, %s)
+                RETURNING id
+                """,
+                (entry.email, entry.reason, entry.wallet_address),
+            )
+            row_id = cur.fetchone()[0]
+        return {"message": "Successfully added to waitlist!", "id": row_id}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # --------------------- HOME PAGE ENDPOINTS --------------------- #
 
@@ -65,6 +122,7 @@ def get_top_creators(category: str = "cryptocurrencies"):
     endpoint = f"public/category/{category}/creators/v1"
     return client.fetch(endpoint, ttl=3600)
 
+
 # --------------------- COIN DETAILS --------------------- #
 
 @router.get("/api/coin/{coin_id}/meta")
@@ -82,6 +140,7 @@ def get_coin_timeseries(coin_id: str):
         params={"interval": "1d"},
         ttl=600
     )
+
 
 # --------------------- TOPIC DETAILS --------------------- #
 

@@ -21,7 +21,6 @@ class CacheManager:
 
     def cache_data(self, key, value, ttl=30):
         """Store the response with a timestamp and TTL."""
-        ttl += 100000
         with shelve.open(self.filename, writeback=True) as cache:
             cache[key] = {
                 "data": value,
