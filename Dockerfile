@@ -1,29 +1,26 @@
-# Use an official Python runtime as a parent image
+# Use an official Python 3.13 image
 FROM python:3.13
 
-# Set the working directory in the container
+# Set the working directory inside the container
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies, including gdbm for shelve support
 RUN apt-get update && apt-get install -y \
     build-essential \
-    gcc \
+    python3-gdbm \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the current directory contents into the container at /app
+# Copy all files from your local directory to /app in the container
 COPY . /app
 
-# Install Python dependencies
+# Install Python dependencies (with no cache for a clean install)
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Make port 80 available to the world outside this container
+# Expose port 80 for the FastAPI service
 EXPOSE 80
 
-# Define environment variable
-ENV NAME World
-
-# Set the PYTHONPATH environment variable
+# Ensure your Python modules can be found in /app
 ENV PYTHONPATH=/app
 
-# Run the correct main.py when the container launches
+# Run the main FastAPI app
 CMD ["python", "api/main.py"]
